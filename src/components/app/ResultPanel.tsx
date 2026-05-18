@@ -1,6 +1,6 @@
 import { Box, Flex, Text } from '@chakra-ui/react';
 import AnnotatedImage from './AnnotatedImage';
-import type { RoboflowPrediction } from '../types/roboflow';
+import type { RoboflowPrediction } from '../../types/roboflow';
 
 interface ResultPanelProps {
   type: 'pickup' | 'return';

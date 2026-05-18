@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { RoboflowPrediction } from '../types/roboflow';
+import type { RoboflowPrediction } from '../../types/roboflow';
 
 interface AnnotatedImageProps {
   imageFile: File | null;
