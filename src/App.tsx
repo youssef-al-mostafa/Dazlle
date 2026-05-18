@@ -1,68 +1,16 @@
 import { Box, Flex, Grid, Text } from '@chakra-ui/react';
-import { useState } from 'react';
-import { FiRefreshCcw, FiSearch } from 'react-icons/fi';
-import { Provider } from './components/ui/provider';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import ImageUpload from './components/ImageUpload';
-import Scanner from './components/Scanner';
-import ProgressSteps from './components/ProgressSteps';
-import StatCard from './components/StatCard';
-import ResultPanel from './components/ResultPanel';
-import DamageTable from './components/DamageTable';
-import { RoboflowService } from './services/roboflow';
-import type { DamageDetectionResult, RoboflowPrediction } from './types/roboflow';
-
-type AppState = 'upload' | 'analyzing' | 'results';
-
-interface UploadFile {
-  file: File;
-  url: string;
-}
-
-interface AnalysisResult {
-  pickupDamage: DamageDetectionResult;
-  returnDamage: DamageDetectionResult;
-  newDamage: RoboflowPrediction[];
-}
-
-// Demo data — center-coordinate format matching Roboflow's API response
-const DEMO_RESULT: AnalysisResult = {
-  pickupDamage: {
-    predictions: [
-      { x: 182, y: 125, width: 145, height: 110, confidence: 0.94, class: 'Scratch', class_id: 0 },
-      { x: 455, y: 225, width: 130, height: 100, confidence: 0.88, class: 'Dent',    class_id: 1 },
-      { x: 628, y: 358, width: 175, height: 115, confidence: 0.79, class: 'Crack',   class_id: 2 },
-    ],
-    imageWidth: 800,
-    imageHeight: 500,
-    processingTime: 0.1,
-  },
-  returnDamage: {
-    predictions: [
-      { x: 182, y: 125, width: 145, height: 110, confidence: 0.94, class: 'Scratch', class_id: 0 },
-      { x: 455, y: 225, width: 130, height: 100, confidence: 0.88, class: 'Dent',    class_id: 1 },
-      { x: 628, y: 358, width: 175, height: 115, confidence: 0.79, class: 'Crack',   class_id: 2 },
-      { x: 318, y: 368, width: 165, height: 125, confidence: 0.91, class: 'Dent',    class_id: 1, detection_id: 'new-1' },
-      { x: 683, y: 215, width: 135, height: 90,  confidence: 0.83, class: 'Scratch', class_id: 0, detection_id: 'new-2' },
-    ],
-    imageWidth: 800,
-    imageHeight: 500,
-    processingTime: 0.1,
-  },
-  newDamage: [
-    { x: 318, y: 368, width: 165, height: 125, confidence: 0.91, class: 'Dent',    class_id: 1, detection_id: 'new-1' },
-    { x: 683, y: 215, width: 135, height: 90,  confidence: 0.83, class: 'Scratch', class_id: 0, detection_id: 'new-2' },
-  ],
-};
-
-function isNewDamage(pred: RoboflowPrediction, newDamage: RoboflowPrediction[]): boolean {
-  return newDamage.some(nd =>
-    nd.detection_id && pred.detection_id
-      ? nd.detection_id === pred.detection_id
-      : Math.abs(nd.x - pred.x) < 1 && Math.abs(nd.y - pred.y) < 1,
-  );
-}
+import { FiRefreshCcw, FiSearch, FiAlertTriangle } from 'react-icons/fi';
+import { Provider } from './components/core/ui/provider';
+import Navbar from './components/app/Navbar';
+import Hero from './components/app/Hero';
+import ImageUpload from './components/core/ImageUpload';
+import Scanner from './components/core/Scanner';
+import ProgressSteps from './components/core/ProgressSteps';
+import StatCard from './components/core/StatCard';
+import ResultPanel from './components/app/ResultPanel';
+import DamageTable from './components/app/DamageTable';
+import { useInspectionStore, isNewDamage } from './store/inspectionStore';
+import type { RoboflowPrediction } from './types/roboflow';
 
 function getAvgConfidence(preds: RoboflowPrediction[]): string {
   if (preds.length === 0) return '0%';
@@ -101,7 +49,6 @@ function AnalyzingView() {
         </Text>
       </Box>
 
-      {/* Progress bar */}
       <Box w="100%" h="3px" bg="surface.3" borderRadius="pill" overflow="hidden">
         <Box
           h="100%"
@@ -119,76 +66,23 @@ function AnalyzingView() {
 }
 
 export default function App() {
-  const [appState, setAppState] = useState<AppState>('upload');
-  const [pickup, setPickup] = useState<UploadFile | null>(null);
-  const [returnFile, setReturnFile] = useState<UploadFile | null>(null);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    appState,
+    pickup,
+    returnFile,
+    result,
+    error,
+    similarityWarning,
+    setPickup,
+    removePickup,
+    setReturnFile,
+    removeReturnFile,
+    analyze,
+    reset,
+    dismissWarning,
+  } = useInspectionStore();
 
   const canAnalyze = pickup !== null && returnFile !== null;
-
-  const handlePickupChange = (file: File) => {
-    if (pickup) URL.revokeObjectURL(pickup.url);
-    setPickup({ file, url: URL.createObjectURL(file) });
-  };
-
-  const handleReturnChange = (file: File) => {
-    if (returnFile) URL.revokeObjectURL(returnFile.url);
-    setReturnFile({ file, url: URL.createObjectURL(file) });
-  };
-
-  const handlePickupRemove = () => {
-    if (pickup) URL.revokeObjectURL(pickup.url);
-    setPickup(null);
-  };
-
-  const handleReturnRemove = () => {
-    if (returnFile) URL.revokeObjectURL(returnFile.url);
-    setReturnFile(null);
-  };
-
-  const handleAnalyze = async (demo = false) => {
-    setError(null);
-    setAppState('analyzing');
-
-    const timerPromise = new Promise<void>(r => setTimeout(r, 2900));
-
-    if (demo) {
-      await timerPromise;
-      setResult(DEMO_RESULT);
-      setAppState('results');
-      return;
-    }
-
-    let apiError: string | null = null;
-
-    const [analysis] = await Promise.all([
-      RoboflowService.compareDamage(pickup!.file, returnFile!.file).catch(err => {
-        apiError = err instanceof Error ? err.message : 'Analysis failed';
-        return null;
-      }),
-      timerPromise,
-    ]);
-
-    if (apiError || !analysis) {
-      setError(apiError ?? 'Analysis failed');
-      setAppState('upload');
-      return;
-    }
-
-    setResult(analysis);
-    setAppState('results');
-  };
-
-  const handleReset = () => {
-    if (pickup) URL.revokeObjectURL(pickup.url);
-    if (returnFile) URL.revokeObjectURL(returnFile.url);
-    setPickup(null);
-    setReturnFile(null);
-    setResult(null);
-    setError(null);
-    setAppState('upload');
-  };
 
   return (
     <Provider>
@@ -219,10 +113,8 @@ export default function App() {
           flexDirection="column"
           alignItems="center"
         >
-          {/* Hero — always visible */}
           <Hero />
 
-          {/* Workspace */}
           <Box w="100%" maxW="1120px" px="24px" pb="80px">
 
             {/* ── UPLOAD STATE ── */}
@@ -253,18 +145,17 @@ export default function App() {
                   <ImageUpload
                     type="pickup"
                     uploadFile={pickup}
-                    onFileChange={handlePickupChange}
-                    onRemove={handlePickupRemove}
+                    onFileChange={setPickup}
+                    onRemove={removePickup}
                   />
                   <ImageUpload
                     type="return"
                     uploadFile={returnFile}
-                    onFileChange={handleReturnChange}
-                    onRemove={handleReturnRemove}
+                    onFileChange={setReturnFile}
+                    onRemove={removeReturnFile}
                   />
                 </Grid>
 
-                {/* Analyze button */}
                 <Box
                   as="button"
                   display="inline-flex"
@@ -290,13 +181,12 @@ export default function App() {
                       ? { transform: 'translateY(-3px)', boxShadow: 'glow.button' }
                       : {}
                   }
-                  onClick={() => canAnalyze && handleAnalyze(false)}
+                  onClick={() => canAnalyze && analyze(false)}
                 >
                   <FiSearch size={16} />
                   Analyze Damage
                 </Box>
 
-                {/* Demo link */}
                 <Box
                   as="button"
                   fontFamily="body"
@@ -311,7 +201,7 @@ export default function App() {
                     transition: 'color 0.2s ease',
                   }}
                   _hover={{ color: 'text.2' }}
-                  onClick={() => handleAnalyze(true)}
+                  onClick={() => analyze(true)}
                 >
                   Try with sample demo →
                 </Box>
@@ -325,7 +215,6 @@ export default function App() {
             {appState === 'results' && result && (
               <Flex direction="column" gap="20px" w="100%">
 
-                {/* Header row */}
                 <Flex align="flex-start" justify="space-between" gap="16px" flexWrap="wrap">
                   <Box>
                     <Text fontFamily="display" fontSize="display.sm" fontWeight={700} color="text.1">
@@ -355,14 +244,49 @@ export default function App() {
                     whiteSpace="nowrap"
                     style={{ transition: 'all 0.2s ease' }}
                     _hover={{ bg: 'surface.3', color: 'text.1' }}
-                    onClick={handleReset}
+                    onClick={reset}
                   >
                     <FiRefreshCcw size={13} />
                     New Inspection
                   </Box>
                 </Flex>
 
-                {/* Stats row */}
+                {/* Similarity warning — only fires on low scores (likely different vehicles) */}
+                {similarityWarning && (
+                  <Box
+                    w="100%"
+                    px="20px"
+                    py="14px"
+                    bg="rgba(244,63,94,0.08)"
+                    border="1px solid"
+                    borderColor="danger.border"
+                    borderRadius="xl"
+                  >
+                    <Flex align="center" justify="space-between" gap="12px">
+                      <Flex align="center" gap="10px">
+                        <FiAlertTriangle size={15} color="#f43f5e" />
+                        <Text fontFamily="body" fontSize="body.sm" color="danger">
+                          {similarityWarning}
+                        </Text>
+                      </Flex>
+                      <Box
+                        as="button"
+                        fontFamily="body"
+                        fontSize="label"
+                        color="text.3"
+                        bg="transparent"
+                        border="none"
+                        cursor="pointer"
+                        flexShrink={0}
+                        _hover={{ color: 'text.2' }}
+                        onClick={dismissWarning}
+                      >
+                        Dismiss
+                      </Box>
+                    </Flex>
+                  </Box>
+                )}
+
                 <Grid
                   templateColumns={{ base: '1fr 1fr', lg: 'repeat(4, 1fr)' }}
                   gap="14px"
@@ -390,7 +314,6 @@ export default function App() {
                   />
                 </Grid>
 
-                {/* Annotated image grid */}
                 <Grid
                   templateColumns={{ base: '1fr', lg: '1fr 1fr' }}
                   gap="18px"
@@ -414,7 +337,6 @@ export default function App() {
                   />
                 </Grid>
 
-                {/* Damage table */}
                 {result.newDamage.length > 0 && (
                   <DamageTable
                     damages={result.newDamage}
