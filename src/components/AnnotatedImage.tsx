@@ -1,123 +1,171 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { Box } from '@chakra-ui/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { RoboflowPrediction } from '../types/roboflow';
 
 interface AnnotatedImageProps {
-  imageFile: File;
+  imageFile: File | null;
   predictions: RoboflowPrediction[];
-  highlightNew?: boolean;
+  newPredictions?: RoboflowPrediction[];
+  originalWidth?: number;
+  originalHeight?: number;
 }
 
-export default function AnnotatedImage({ imageFile, predictions, highlightNew = false }: AnnotatedImageProps) {
+const CANVAS_W = 800;
+const CANVAS_H = 500;
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawBox(
+  ctx: CanvasRenderingContext2D,
+  pred: RoboflowPrediction,
+  color: string,
+  scaleX: number,
+  scaleY: number,
+) {
+  const bx = (pred.x - pred.width / 2) * scaleX;
+  const by = (pred.y - pred.height / 2) * scaleY;
+  const bw = pred.width * scaleX;
+  const bh = pred.height * scaleY;
+
+  // Soft fill
+  ctx.fillStyle = color + '22';
+  ctx.fillRect(bx, by, bw, bh);
+
+  // Border
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx, by, bw, bh);
+
+  // Corner accents — 10px L-shapes, 3px stroke
+  const cs = 10;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+
+  // Top-left
+  ctx.beginPath();
+  ctx.moveTo(bx, by + cs);
+  ctx.lineTo(bx, by);
+  ctx.lineTo(bx + cs, by);
+  ctx.stroke();
+  // Top-right
+  ctx.beginPath();
+  ctx.moveTo(bx + bw - cs, by);
+  ctx.lineTo(bx + bw, by);
+  ctx.lineTo(bx + bw, by + cs);
+  ctx.stroke();
+  // Bottom-right
+  ctx.beginPath();
+  ctx.moveTo(bx + bw, by + bh - cs);
+  ctx.lineTo(bx + bw, by + bh);
+  ctx.lineTo(bx + bw - cs, by + bh);
+  ctx.stroke();
+  // Bottom-left
+  ctx.beginPath();
+  ctx.moveTo(bx + cs, by + bh);
+  ctx.lineTo(bx, by + bh);
+  ctx.lineTo(bx, by + bh - cs);
+  ctx.stroke();
+
+  // Label pill
+  const confPct = `${Math.round(pred.confidence * 100)}%`;
+  const txt = `${pred.class}  ${confPct}`;
+  ctx.font = '600 11px "DM Sans", sans-serif';
+  const tw = ctx.measureText(txt).width;
+  const ph = 20;
+  const pv = 6;
+  const pr = 4;
+  const lx = bx;
+  const ly = by - ph - 4;
+
+  if (ly >= 0) {
+    ctx.fillStyle = color;
+    roundRect(ctx, lx, ly, tw + ph, ph + pv, pr);
+    ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.fillText(txt, lx + ph / 2, ly + ph - 3);
+  }
+}
+
+export default function AnnotatedImage({
+  imageFile,
+  predictions,
+  newPredictions = [],
+  originalWidth = CANVAS_W,
+  originalHeight = CANVAS_H,
+}: AnnotatedImageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
-    if (!imageRef.current) return;
-
-    const img = imageRef.current;
-    const url = URL.createObjectURL(imageFile);
-
-    setImageLoaded(false);
-
-    const handleLoad = () => {
-      //console.log('Image loaded:', imageFile.name, 'Size:', img.naturalWidth, 'x', img.naturalHeight);
-      setImageLoaded(true);
-    };
-
-    img.onload = handleLoad;
-    img.src = url;
-
-    if (img.complete) {
-      handleLoad();
-    }
-
-    return () => {
-      URL.revokeObjectURL(url);
-      img.onload = null;
-    };
-  }, [imageFile]);
-
-  useEffect(() => {
-    if (!imageLoaded || !canvasRef.current || !imageRef.current) {
-      //console.log('Waiting for image to load...', { imageLoaded, canvas: !!canvasRef.current, image: !!imageRef.current });
-      return;
-    }
-
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.width = CANVAS_W;
+    canvas.height = CANVAS_H;
+
     const ctx = canvas.getContext('2d');
-    const img = imageRef.current;
+    if (!ctx) return;
 
-    if (!ctx || !img.naturalWidth || !img.naturalHeight) {
-      //console.log('Canvas context or image dimensions not ready');
-      return;
+    const scaleX = CANVAS_W / originalWidth;
+    const scaleY = CANVAS_H / originalHeight;
+
+    const paint = () => {
+      predictions.forEach(p => drawBox(ctx, p, '#3b82f6', scaleX, scaleY));
+      newPredictions.forEach(p => drawBox(ctx, p, '#f43f5e', scaleX, scaleY));
+    };
+
+    if (imageFile) {
+      const url = URL.createObjectURL(imageFile);
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, CANVAS_W, CANVAS_H);
+        paint();
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    } else {
+      // Demo placeholder background
+      const grad = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
+      grad.addColorStop(0, '#141b2e');
+      grad.addColorStop(1, '#0d1220');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      ctx.font = '500 14px "DM Sans", sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        'Sample visualization — upload a photo for real results',
+        CANVAS_W / 2,
+        CANVAS_H / 2 - 10,
+      );
+      ctx.textAlign = 'left';
+
+      paint();
     }
-
-    //console.log('Drawing', predictions.length, 'predictions on canvas');
-
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (predictions.length === 0) {
-      //console.log('No predictions to draw');
-      return;
-    }
-
-    predictions.forEach((prediction) => {
-      const color = highlightNew ? '#EF4444' : '#3B82F6';
-
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.fillStyle = color + '20';
-
-      const x = prediction.x - prediction.width / 2;
-      const y = prediction.y - prediction.height / 2;
-
-      //console.log(`Drawing box ${index + 1}:`, { x, y, width: prediction.width, height: prediction.height, class: prediction.class });
-
-      ctx.fillRect(x, y, prediction.width, prediction.height);
-      ctx.strokeRect(x, y, prediction.width, prediction.height);
-
-      ctx.fillStyle = color;
-      ctx.font = 'bold 16px sans-serif';
-      const label = `${prediction.class} ${(prediction.confidence * 100).toFixed(0)}%`;
-      const textMetrics = ctx.measureText(label);
-
-      ctx.fillRect(x, y - 25, textMetrics.width + 10, 25);
-      ctx.fillStyle = 'white';
-      ctx.fillText(label, x + 5, y - 7);
-    });
-
-    //console.log('Canvas drawing complete');
-  }, [imageLoaded, predictions, highlightNew, imageFile]);
+  }, [imageFile, predictions, newPredictions, originalWidth, originalHeight]);
 
   return (
-    <Box position="relative" w="full">
-      <img
-        ref={imageRef}
-        alt="Vehicle"
-        style={{
-          width: '100%',
-          height: 'auto',
-          display: 'block',
-          borderRadius: '8px',
-        }}
-      />
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-        }}
-      />
-    </Box>
+    <canvas
+      ref={canvasRef}
+      style={{ width: '100%', height: '100%', display: 'block' }}
+    />
   );
 }
