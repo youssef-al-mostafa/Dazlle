@@ -7,15 +7,6 @@
 
 A modern, AI-powered web application for automated vehicle damage detection and inspection comparison. Built to streamline vehicle inspection workflows by identifying new damage between pickup and return inspections using computer vision.
 
-## Features
-
--  **AI-Powered Detection**: Automated damage identification using Roboflow's computer vision API
-- **Comparative Analysis**: Side-by-side comparison of pickup vs. return condition
-- **Drag & Drop Upload**: Intuitive image upload with live preview
-- **Responsive Design**: Fully optimized for desktop, tablet, and mobile devices
-- **Real-time Processing**: Concurrent API calls for fast analysis results
-- **Modern UI**: Clean interface built with Chakra UI and Framer Motion
-
 ## Demo
 
 ### Sample Analysis
@@ -48,6 +39,10 @@ A modern, AI-powered web application for automated vehicle damage detection and 
 - **Frontend Framework**: React 19.2 with Hooks
 - **Type Safety**: TypeScript 5.9
 - **UI Library**: Chakra UI 3.29 with Emotion
+- **Styling**: Tailwind CSS 4.1
+- **Animations**: Framer Motion 12.23
+- **State Management**: Zustand 5.0
+- **Headless Components**: Headless UI 2.2
 - **Build Tool**: Vite 7.2
 - **HTTP Client**: Axios 1.13
 - **Computer Vision**: Roboflow API
@@ -65,8 +60,8 @@ A modern, AI-powered web application for automated vehicle damage detection and 
 
 1. Clone the repository
 ```bash
-https://github.com/youssef-al-mostafa/Hiring-Sprint-2025/
-cd vehicle-inspector
+git clone https://github.com/youssef-al-mostafa/Dazlle.git
+cd Dazlle
 ```
 
 2. Install dependencies
@@ -109,91 +104,51 @@ npm run lint
 
 ```
 vehicle-inspector/
-├── public/              # Static assets
+├── public/
+│   ├── demo-car-before.jpg
+│   ├── demo-car-after.jpg
+│   ├── result.png
 │   └── vite.svg
-├── src/                 # Source files
-│   ├── assets/          # Images and static files
+├── src/
+│   ├── assets/
 │   │   └── react.svg
-│   ├── components/      # React components
-│   │   ├── AnnotatedImage.tsx      # Canvas-based damage visualization
-│   │   ├── ImageUpload.tsx         # Drag-and-drop file upload
-│   │   └── ui/
-│   │       └── provider.tsx        # Chakra UI theme provider
-│   ├── services/        # API services
-│   │   └── roboflow.ts             # Roboflow API integration
-│   ├── types/           # TypeScript interfaces
-│   │   └── roboflow.ts             # API response types
-│   ├── App.tsx          # Root component
-│   ├── main.tsx         # Application entry point
-│   ├── theme.ts         # Chakra UI theme configuration
-│   └── index.css        # Global styles
-├── .env.example         # Environment variables template
-├── .gitignore          
-├── eslint.config.js    
-├── index.html         
-├── vite.config.ts      
-├── tsconfig.json       
-└── package.json        
+│   ├── components/
+│   │   ├── core/                        # Reusable, project-agnostic components
+│   │   │   ├── ImageUpload.tsx          # Drag-and-drop file upload
+│   │   │   ├── ProgressSteps.tsx        # Step indicator
+│   │   │   ├── Scanner.tsx              # Scanning animation
+│   │   │   ├── StatCard.tsx             # Label/value stat display
+│   │   │   └── ui/
+│   │   │       └── provider.tsx         # Chakra UI theme provider
+│   │   └── app/                         # Components specific to this application
+│   │       ├── AnnotatedImage.tsx       # Canvas-based damage visualization
+│   │       ├── DamageTable.tsx          # Damage results table
+│   │       ├── Hero.tsx                 # Landing hero section
+│   │       ├── Navbar.tsx               # Top navigation bar
+│   │       └── ResultPanel.tsx          # Inspection result panel
+│   ├── services/
+│   │   └── roboflow.ts                  # Roboflow API integration
+│   ├── types/
+│   │   └── roboflow.ts                  # API response types
+│   ├── utils/
+│   │   └── imageSimilarity.ts           # Damage comparison logic
+│   ├── App.css
+│   ├── App.tsx                          # Root component
+│   ├── index.css                        # Global styles
+│   ├── main.tsx                         # Application entry point
+│   └── theme.ts                         # Chakra UI theme configuration
+├── .env.example
+├── .gitignore
+├── eslint.config.js
+├── index.html
+├── package.json
+├── tsconfig.json
+├── tsconfig.app.json
+├── tsconfig.node.json
+└── vite.config.ts
 ```
-
-##  Key Highlights
-
-- **Advanced Computer Vision**: Integration with Roboflow's state-of-the-art damage detection model
-- **Smart Matching Algorithm**: Spatial proximity-based algorithm to identify new damage between inspections
-- **Type-Safe Development**: Full TypeScript integration for better developer experience and fewer runtime errors
-- **Canvas Rendering**: Optimized damage annotations drawn directly on HTML canvas for high performance
-- **Component Composition**: Modular component design following React best practices
-- **Error Handling**: Comprehensive error handling with user-friendly messages
-- **Memory Management**: Proper cleanup of object URLs and event listeners
-
-##  Features in Detail
-
-### Damage Detection
-- Upload vehicle images from pickup and return inspections
-- Automatic damage detection with bounding box visualization
-- Confidence scores for each detected damage
-- Classification by damage type (dent, scratch, crack, etc.)
-
-### Comparative Analysis
-- Side-by-side comparison of inspection images
-- Automatic identification of new damage
-- Color-coded annotations (blue for existing, red for new)
-- Statistical summary with damage counts
-
-### User Experience
-- Intuitive drag-and-drop interface
-- Image preview before analysis
-- Loading states with spinners during processing
-- Success/error alerts for user feedback
-- One-click reset to start new analysis
-
-### Visual Interface
-- Clean, professional design optimized for inspection workflows
-- Responsive grid layout adapting to screen size
-- Smooth animations and transitions
-- Accessibility-focused UI components
 
 ##  How It Works
-
-### Damage Detection Algorithm
-
-The application uses a spatial proximity algorithm to identify new damage:
-
-```typescript
-// Threshold for considering damage as "same location"
-const POSITION_THRESHOLD = 50; // pixels
-
-// Filter return damages that don't exist in pickup
-newDamage = returnDamages.filter(returnDamage => 
-  !pickupDamages.some(pickupDamage =>
-    // Check if damage is within position threshold
-    Math.abs(pickupDamage.x - returnDamage.x) < POSITION_THRESHOLD &&
-    Math.abs(pickupDamage.y - returnDamage.y) < POSITION_THRESHOLD &&
-    // Ensure damage types match
-    pickupDamage.class === returnDamage.class
-  )
-);
-```
 
 ### API Integration Flow
 
@@ -204,12 +159,19 @@ newDamage = returnDamages.filter(returnDamage =>
 5. **Comparison**: Algorithm identifies new damage based on spatial proximity
 6. **Visualization**: Results displayed with annotated images and statistics
 
-##  Security
+## AI Model
 
-- API keys stored in environment variables (never committed to repository)
-- `.env` file excluded from version control
-- Client-side validation for image file types
-- Type-safe API responses with proper error handling
+This project uses the **[Car-Damage Detection](https://universe.roboflow.com/college-gxdrt/car-damage-detection-ha5mm)** model hosted on Roboflow Universe.
+
+| Property | Detail |
+|---|---|
+| Model ID | `car-damage-detection-ha5mm` (v3) |
+| Type | Instance Segmentation |
+| Dataset | 11,685 images |
+| Classes | Dents, scratches, broken parts |
+| mAP@50 | 92.0% |
+
+**Why this model:** Large dataset (11k+ images), high accuracy (92% mAP), covers the three damage types most relevant to vehicle rental inspection, and is readily available via the Roboflow API with no self-hosting required.
 
 ## Limitations & Future Enhancements
 
@@ -218,32 +180,6 @@ newDamage = returnDamages.filter(returnDamage =>
 - Simple spatial matching may not handle all edge cases
 - Detection accuracy depends on model training data
 - No image preprocessing or normalization
-
-## Troubleshooting
-
-### Common Issues
-
-**"Roboflow API key not configured"**
-- Ensure `.env` file exists in project root
-- Verify `VITE_ROBOFLOW_API_KEY` is set correctly
-- Restart development server after `.env` changes
-
-**Images not displaying**
-- Check file format (PNG, JPG, JPEG only)
-- Verify file size is within browser limits
-- Check browser console for detailed errors
-
-**Slow or failed detection**
-- Large images take longer to process
-- Check network connection
-- Verify Roboflow API status
-- Consider compressing images before upload
-
-**Inaccurate damage detection**
-- Ensure proper lighting in photos
-- Take photos from consistent angles
-- Verify damage type is supported by model
-- Adjust `POSITION_THRESHOLD` if needed (currently 50px)
 
 ## Acknowledgements
 
