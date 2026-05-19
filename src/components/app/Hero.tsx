@@ -12,6 +12,7 @@ export default function Hero() {
     >
 
       {/* Title */}
+      
       <Box
         fontFamily="display"
         fontWeight={700}
