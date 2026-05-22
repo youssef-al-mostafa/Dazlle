@@ -1,5 +1,5 @@
 import { Box, Flex, Text } from '@chakra-ui/react';
-import type { RoboflowPrediction } from '../types/roboflow';
+import type { RoboflowPrediction } from '../../types/roboflow';
 
 interface DamageTableProps {
   damages: RoboflowPrediction[];

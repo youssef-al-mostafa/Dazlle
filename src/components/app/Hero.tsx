@@ -1,4 +1,4 @@
-import { Box, Flex, Text } from '@chakra-ui/react';
+import { Box, Text } from '@chakra-ui/react';
 
 export default function Hero() {
   return (
@@ -12,6 +12,7 @@ export default function Hero() {
     >
 
       {/* Title */}
+      
       <Box
         fontFamily="display"
         fontWeight={700}
