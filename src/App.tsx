@@ -2,6 +2,7 @@ import { Box, Flex, Grid, Text } from '@chakra-ui/react';
 import { FiRefreshCcw, FiSearch, FiAlertTriangle } from 'react-icons/fi';
 import { Provider } from './components/core/ui/provider';
 import Navbar from './components/app/Navbar';
+import Footer from './components/app/Footer';
 import Hero from './components/app/Hero';
 import ImageUpload from './components/core/ImageUpload';
 import Scanner from './components/core/Scanner';
@@ -366,6 +367,7 @@ export default function App() {
             )}
 
           </Box>
+          <Footer />
         </Box>
       </Box>
     </Provider>
