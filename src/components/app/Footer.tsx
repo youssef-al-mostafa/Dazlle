@@ -1,4 +1,4 @@
-import { Box, Text } from '@chakra-ui/react';
+import { Box, Link, Text } from '@chakra-ui/react';
 import { MdOutlineEmail } from 'react-icons/md';
 
 export default function Footer() {
@@ -33,8 +33,7 @@ export default function Footer() {
           · 2026 · All rights reserved
         </Text>
 
-        <Box
-          as="a"
+        <Link
           href="mailto:youssefalmostafa2@gmail.com"
           display="flex"
           alignItems="center"
@@ -47,7 +46,7 @@ export default function Footer() {
         >
           <MdOutlineEmail size={15} />
           youssefalmostafa2@gmail.com
-        </Box>
+        </Link>
       </Box>
     </Box>
   );
